@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kinocine Drag & Drop Bookmark</title>
+    <title>Kinocine Cloud Bookmark</title>
     <style>
         :root {
             --bg-color: #f8f9fa;
             --card-bg: #ffffff;
             --primary-color: #007bff;
-            --success-color: #28a745;
-            --warning-color: #ffc107;
-            --grid-size: 100px; /* 아이콘 크기 */
+            --grid-size: 100px;
         }
 
         body {
@@ -24,7 +22,7 @@
             align-items: center;
         }
 
-        /* 입력 폼 가로 압축 */
+        /* 입력 폼 가로 압축 및 로딩 상태 표시 추가 */
         .input-container {
             background-color: var(--card-bg);
             padding: 12px 18px;
@@ -35,7 +33,7 @@
             gap: 8px;
             align-items: center;
             width: 100%;
-            max-width: 600px;
+            max-width: 500px;
             box-sizing: border-box;
         }
 
@@ -49,8 +47,7 @@
             background-color: #fafafa;
         }
 
-        /* 아이콘 버튼 공통 */
-        .input-container button {
+        .add-btn {
             width: 36px;
             height: 36px;
             border: none;
@@ -62,15 +59,21 @@
             font-size: 15px;
             transition: transform 0.2s, background 0.2s;
             flex-shrink: 0;
+            background-color: var(--primary-color);
+            color: white;
         }
 
-        .input-container button:hover {
-            transform: scale(1.08);
-        }
+        .add-btn:hover { transform: scale(1.08); }
+        .add-btn:disabled { background-color: #ccc; cursor: not-allowed; }
 
-        .add-btn { background-color: var(--primary-color); color: white; }
-        .download-btn { background-color: var(--success-color); color: white; }
-        .restore-btn { background-color: var(--warning-color); color: #212529; }
+        /* 클라우드 동기화 상태 메시지 */
+        #statusMessage {
+            font-size: 12px;
+            color: #666;
+            margin-top: -20px;
+            margin-bottom: 20px;
+            height: 15px;
+        }
 
         /* 모자이크 그리드 */
         .mosaic-grid {
@@ -107,7 +110,6 @@
             text-decoration: none;
         }
 
-        /* 이미지 또는 텍스트 아이콘 공통 처리 */
         .bookmark-content {
             width: 100%;
             height: 100%;
@@ -122,7 +124,7 @@
             pointer-events: none;
         }
 
-        /* 카드 제어 버튼 묶음 (수정/삭제) */
+        /* 카드 제어 버튼 (수정/삭제) */
         .action-btns {
             position: absolute;
             top: 5px;
@@ -132,9 +134,7 @@
             z-index: 10;
         }
 
-        .bookmark-item:hover .action-btns {
-            display: flex;
-        }
+        .bookmark-item:hover .action-btns { display: flex; }
 
         .action-btns button {
             border: none;
@@ -159,19 +159,67 @@
     <div class="input-container">
         <input type="text" id="imgUrl" placeholder="이미지 URL 또는 [단어] 입력" required>
         <input type="text" id="siteUrl" placeholder="이동할 사이트 URL" required>
-        <button onclick="addBookmark()" class="add-btn" title="추가하기">➕</button>
-        <button onclick="downloadBookmarks()" class="download-btn" title="코드다운받기">📥</button>
-        <button onclick="restoreBookmarks()" class="restore-btn" title="백업복구하기">📤</button>
+        <button onclick="addBookmark()" id="submitBtn" class="add-btn" title="추가하기">➕</button>
     </div>
+    
+    <div id="statusMessage">☁️ 구글 시트에서 데이터를 불러오는 중...</div>
 
     <div class="mosaic-grid" id="mosaicGrid"></div>
 
     <script>
-        let bookmarks = JSON.parse(localStorage.getItem('kinocine_drag_bookmarks')) || [];
+        // ⚠️ [중요] 1단계에서 복사한 구글 앱스 스크립트 웹 앱 URL을 여기에 붙여넣으세요!
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwQeG1mJ18CIejY4rqWA2h4uqMNrHi3oDczgiSJ77u8wH9hRHFtjZA8hP8weGD6e9a6og/exec';
+
+        let bookmarks = [];
 
         window.onload = function() {
-            renderBookmarks();
+            loadFromCloud();
         };
+
+        // --- 구글 시트에서 데이터 가져오기 (로드) ---
+        function loadFromCloud() {
+            showStatus("☁️ 구글 시트에서 데이터를 불러오는 중...");
+            fetch(SCRIPT_URL)
+                .then(res => res.json())
+                .then(data => {
+                    bookmarks = data;
+                    renderBookmarks();
+                    showStatus("✅ 동기화 완료");
+                })
+                .catch(err => {
+                    console.error(err);
+                    showStatus("❌ 데이터를 불러오지 못했습니다. URL을 확인해 주세요.");
+                });
+        }
+
+        // --- 구글 시트에 데이터 최종 저장하기 (저장) ---
+        function saveToCloud() {
+            showStatus("🔄 변경 사항을 구글 시트에 저장 중...");
+            document.getElementById('submitBtn').disabled = true;
+
+            // 구글 앱스 스크립트와 통신하기 위한 POST 요청
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(bookmarks),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            })
+            .then(res => res.json())
+            .then(result => {
+                if(result.result === "success") {
+                    showStatus("✅ 모든 변경사항이 구글 클라우드에 안전하게 저장되었습니다.");
+                }
+                document.getElementById('submitBtn').disabled = false;
+            })
+            .catch(err => {
+                console.error(err);
+                showStatus("❌ 클라우드 저장 실패. 잠시 후 다시 시도해 주세요.");
+                document.getElementById('submitBtn').disabled = false;
+            });
+        }
+
+        function showStatus(msg) {
+            document.getElementById('statusMessage').innerText = msg;
+        }
 
         function addBookmark() {
             const imgUrlInput = document.getElementById('imgUrl');
@@ -186,21 +234,16 @@
             }
 
             if (!/^https?:\/\//i.test(siteUrl)) siteUrl = 'https://' + siteUrl;
-            // 일반 주소 형태가 아니고 짧은 글자라면 텍스트 아이콘으로 그대로 저장하도록 허용
             if (/^https?:\/\//i.test(imgUrl) || imgUrl.includes('.') || imgUrl.startsWith('data:')) {
                 if (!/^https?:\/\//i.test(imgUrl) && !imgUrl.startsWith('data:')) imgUrl = 'https://' + imgUrl;
             }
 
             bookmarks.push({ img: imgUrl, url: siteUrl });
-            saveAndRender();
+            renderBookmarks();
+            saveToCloud(); // 추가 후 구글 시트에 즉시 업로드
 
             imgUrlInput.value = '';
             siteUrlInput.value = '';
-        }
-
-        function saveAndRender() {
-            localStorage.setItem('kinocine_drag_bookmarks', JSON.stringify(bookmarks));
-            renderBookmarks();
         }
 
         function renderBookmarks() {
@@ -213,12 +256,11 @@
                 itemDiv.setAttribute('draggable', 'true');
                 itemDiv.setAttribute('data-index', index);
 
-                // 이미지 URL인지 단순 텍스트 아이콘인지 판별하여 그리기
                 let innerElement = '';
                 if (item.img.startsWith('http') || item.img.startsWith('data:') || item.img.includes('/')) {
                     innerElement = `<img src="${item.img}" class="bookmark-content" onerror="this.onerror=null; this.outerHTML='<div class=\\'bookmark-content\\'>📄</div>';">`;
                 } else {
-                    innerElement = `<div class="bookmark-content" style="background-gradient: linear-gradient(135deg, #e9ecef, #dee2e6);">${item.img}</div>`;
+                    innerElement = `<div class="bookmark-content" style="background: linear-gradient(135deg, #e9ecef, #dee2e6);">${item.img}</div>`;
                 }
 
                 itemDiv.innerHTML = `
@@ -240,67 +282,33 @@
             });
         }
 
-        // --- 개별 아이콘 및 주소 수정 기능 ---
         function editBookmark(index) {
             const item = bookmarks[index];
-            
             const newImg = prompt("새로운 이미지 주소 또는 단어를 입력하세요:", item.img);
-            if (newImg === null) return; // 취소 시 중단
+            if (newImg === null) return;
             
             const newUrl = prompt("이동할 새로운 사이트 주소를 입력하세요:", item.url);
-            if (newUrl === null) return; // 취소 시 중단
+            if (newUrl === null) return;
 
             if (newImg.trim() && newUrl.trim()) {
                 let formattedUrl = newUrl.trim();
                 if (!/^https?:\/\//i.test(formattedUrl)) formattedUrl = 'https://' + formattedUrl;
 
                 bookmarks[index] = { img: newImg.trim(), url: formattedUrl };
-                saveAndRender();
+                renderBookmarks();
+                saveToCloud(); // 수정 후 구글 시트에 즉시 반영
             }
         }
 
         function deleteBookmark(index) {
             if(confirm('이 즐겨찾기를 삭제하시겠습니까?')) {
                 bookmarks.splice(index, 1);
-                saveAndRender();
+                renderBookmarks();
+                saveToCloud(); // 삭제 후 구글 시트 동기화
             }
         }
 
-        function downloadBookmarks() {
-            if (bookmarks.length === 0) {
-                alert('다운로드할 데이터가 없습니다.');
-                return;
-            }
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bookmarks, null, 4));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", "kinocine_bookmarks_backup.json");
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        }
-
-        function restoreBookmarks() {
-            const userInput = prompt("백업 데이터(JSON)를 붙여넣어 주세요:");
-            if (!userInput) return;
-
-            try {
-                const parsedData = JSON.parse(userInput.trim());
-                if (Array.isArray(parsedData)) {
-                    if (confirm("기존 데이터를 덮어쓰고 복구하시겠습니까?")) {
-                        bookmarks = parsedData;
-                        saveAndRender();
-                        alert("복구되었습니다!");
-                    }
-                } else {
-                    alert("올바른 형식이 아닙니다.");
-                }
-            } catch (e) {
-                alert("데이터 분석에 실패했습니다.");
-            }
-        }
-
-        // --- 드래그앤드롭 및 클릭 연동 로직 ---
+        // --- 드래그앤드롭 연동 로직 ---
         let dragSrcIndex = null;
         let isDraggingNow = false;
 
@@ -324,7 +332,8 @@
             if (dragSrcIndex !== null && targetIndex !== null && dragSrcIndex !== targetIndex) {
                 const draggedItem = bookmarks.splice(dragSrcIndex, 1)[0];
                 bookmarks.splice(targetIndex, 0, draggedItem);
-                saveAndRender();
+                renderBookmarks();
+                saveToCloud(); // 순서 변경 후 구글 시트 최종 업데이트
             }
             return false;
         }
