@@ -9,6 +9,7 @@
             --bg-color: #f8f9fa;
             --card-bg: #ffffff;
             --primary-color: #007bff;
+            --success-color: #28a745;
             --grid-size: 100px; /* 아이콘 크기 */
         }
 
@@ -33,7 +34,7 @@
             gap: 10px;
             flex-wrap: wrap;
             width: 100%;
-            max-width: 600px;
+            max-width: 650px;
             box-sizing: border-box;
         }
 
@@ -59,6 +60,15 @@
 
         .input-container button:hover {
             background-color: #0056b3;
+        }
+
+        /* 다운로드 버튼 스타일 */
+        .input-container .download-btn {
+            background-color: var(--success-color);
+        }
+
+        .input-container .download-btn:hover {
+            background-color: #218838;
         }
 
         /* 모자이크 그리드 */
@@ -143,6 +153,7 @@
         <input type="text" id="imgUrl" placeholder="이미지 주소(URL) 입력" required>
         <input type="text" id="siteUrl" placeholder="이동할 사이트 주소(URL) 입력" required>
         <button onclick="addBookmark()">추가하기</button>
+        <button onclick="downloadBookmarks()" class="download-btn" title="전체 데이터 다운로드">코드다운받기</button>
     </div>
 
     <div class="mosaic-grid" id="mosaicGrid"></div>
@@ -191,7 +202,6 @@
                 itemDiv.setAttribute('draggable', 'true');
                 itemDiv.setAttribute('data-index', index);
 
-                // 클릭 이벤트가 드래그와 충돌하지 않도록 처리
                 itemDiv.innerHTML = `
                     <a href="${item.url}" target="_blank" class="bookmark-link" title="${item.url}">
                         <img src="${item.img}" class="bookmark-img" onerror="this.src='https://via.placeholder.com/100?text=Error'">
@@ -216,22 +226,41 @@
             }
         }
 
+        // --- 추가된 기능: 전체 DB 백업 파일 다운로드 ---
+        function downloadBookmarks() {
+            if (bookmarks.length === 0) {
+                alert('다운로드할 즐겨찾기 데이터가 없습니다.');
+                return;
+            }
+            
+            // 데이터를 보기 좋게 정렬된 JSON 문자열로 변환
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bookmarks, null, 4));
+            
+            // 임시 링크 태그를 만들어 브라우저 다운로드 트리거
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "kinocine_bookmarks_backup.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
         // --- 드래그앤드롭 및 클릭 정밀 호환 로직 ---
         let dragSrcIndex = null;
-        let isDraggingNow = false; // 실제로 마우스가 움직이며 드래그가 일어났는지 체크
+        let isDraggingNow = false;
 
         function handleDragStart(e) {
             this.classList.add('dragging');
             dragSrcIndex = Number(this.getAttribute('data-index'));
             e.dataTransfer.effectAllowed = 'move';
-            isDraggingNow = false; // 시작할 때는 일단 false
+            isDraggingNow = false;
         }
 
         function handleDragOver(e) {
             if (e.preventDefault) {
                 e.preventDefault(); 
             }
-            isDraggingNow = true; // dragOver가 발생했다는 것은 마우스 이동(드래그)이 일어났다는 뜻
+            isDraggingNow = true;
             return false;
         }
 
@@ -252,8 +281,6 @@
         function handleDragEnd(e) {
             this.classList.remove('dragging');
             
-            // 만약 dragOver가 한 번도 안 일어나고 바로 끝났다면? 
-            // 드래그가 아니라 그냥 '단순 클릭'으로 판단하고 링크를 강제로 열어줍니다.
             if (!isDraggingNow && dragSrcIndex !== null) {
                 const targetUrl = bookmarks[dragSrcIndex].url;
                 window.open(targetUrl, '_blank');
