@@ -167,7 +167,6 @@
     <div class="mosaic-grid" id="mosaicGrid"></div>
 
     <script>
-        // ⚠️ [중요] 1단계에서 복사한 구글 앱스 스크립트 웹 앱 URL을 여기에 붙여넣으세요!
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwQeG1mJ18CIejY4rqWA2h4uqMNrHi3oDczgiSJ77u8wH9hRHFtjZA8hP8weGD6e9a6og/exec';
 
         let bookmarks = [];
@@ -182,6 +181,12 @@
             fetch(SCRIPT_URL)
                 .then(res => res.json())
                 .then(data => {
+                    // 안전장치: 구글 시트에서 빈 시트 신호("EMPTY_SHEET")가 왔을 때는 데이터를 리셋하지 않고 리턴합니다.
+                    if (data && data.status === "EMPTY_SHEET") {
+                        showStatus("✅ 구글 시트 연결됨 (현재 등록된 데이터 없음)");
+                        return;
+                    }
+                    
                     bookmarks = data;
                     renderBookmarks();
                     showStatus("✅ 동기화 완료");
