@@ -132,7 +132,7 @@
 
         .bookmark-item:hover .delete-btn {
             display: flex;
-        }
+            }
     </style>
 </head>
 <body>
@@ -218,12 +218,13 @@
             }
         }
 
-        // --- 드래그앤드롭 핵심 로직 ---
+        // --- 드래그앤드롭 핵심 로직 수정본 ---
         let dragSrcIndex = null;
 
         function handleDragStart(e) {
             this.classList.add('dragging');
-            dragSrcIndex = this.getAttribute('data-index');
+            // 문자열 데이터를 숫자로 확실하게 변환하여 저장합니다.
+            dragSrcIndex = Number(this.getAttribute('data-index'));
             e.dataTransfer.effectAllowed = 'move';
         }
 
@@ -235,16 +236,20 @@
         }
 
         function handleDrop(e) {
+            e.preventDefault();
             e.stopPropagation();
-            const targetIndex = this.getAttribute('data-index');
             
-            // 시작 위치와 타겟 위치가 다를 때만 순서 변경
-            if (dragSrcIndex !== targetIndex) {
-                // 배열에서 드래그한 아이템을 뽑아내서 타겟 위치에 삽입 (우선순위 재정렬)
+            // 타겟 인덱스도 숫자로 변환합니다.
+            const targetIndex = Number(this.getAttribute('data-index'));
+            
+            // 두 인덱스가 유효하고 서로 다를 때만 배열 재정렬 수행
+            if (dragSrcIndex !== null && targetIndex !== null && dragSrcIndex !== targetIndex) {
+                // 기존 배열에서 드래그한 아이템을 잘라내기
                 const draggedItem = bookmarks.splice(dragSrcIndex, 1)[0];
+                // 새로운 위치에 삽입하여 우선순위 변경
                 bookmarks.splice(targetIndex, 0, draggedItem);
                 
-                // 바뀐 우선순위로 로컬 스토리지 저장 및 리렌더링
+                // 순서 갱신 및 저장
                 saveAndRender();
             }
             return false;
@@ -252,6 +257,7 @@
 
         function handleDragEnd(e) {
             this.classList.remove('dragging');
+            dragSrcIndex = null; // 초기화
         }
     </script>
 </body>
