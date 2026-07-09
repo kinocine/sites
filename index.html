@@ -9,7 +9,7 @@
             --bg-color: #f8f9fa;
             --card-bg: #ffffff;
             --primary-color: #007bff;
-            --grid-size: 100px; /* PC 기본 크기 */
+            --grid-size: 100px;
         }
 
         body {
@@ -32,7 +32,7 @@
             text-align: center;
         }
 
-        /* 메인 바둑판 그리드 - 불필요한 공백이나 가짜 벽 없이 아이콘으로만 자동 채움 */
+        /* 메인 모자이크 그리드 */
         .mosaic-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(var(--grid-size), 1fr));
@@ -180,14 +180,14 @@
         .add-btn:hover { transform: scale(1.03); }
         .add-btn:disabled { background-color: #ccc; cursor: not-allowed; }
 
-        /* 모바일 폭 최적화 (정확히 6열로 고정되어 알아서 흐름) */
+        /* 모바일 최적화 */
         @media (max-width: 600px) {
             body { padding: 8px 8px 90px 8px; }
             
             .mosaic-grid {
                 grid-template-columns: repeat(6, 1fr);
                 grid-auto-rows: minmax(calc((100vw - 16px - 25px) / 6), auto);
-                gap: 5px; /* 여백 완벽 최소화 */
+                gap: 5px;
             }
 
             .bookmark-item { 
@@ -225,7 +225,6 @@
     </div>
     
     <script>
-        // 지정해 주신 Apps Script 주소 적용 완료
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyM-HttDcuRJwSn5XNNLa2_B4rEftMa9scIYpCk9YDRFRfQSYx_13bmUmLon5rZVF8WlQ/exec';
         let bookmarks = [];
 
@@ -242,8 +241,8 @@
                         showStatus("✅ 동기화 완료");
                         return;
                     }
-                    // 인위적인 구분선 데이터가 남아있다면 필터링하여 순수 데이터만 로드
-                    bookmarks = data.filter(item => item.url !== "DIVIDER_MARKER" && !item.isDivider);
+                    // 클라우드에 혹시 남아있을지 모를 구분선 데이터를 완전히 필터링하여 순수 북마크만 정제
+                    bookmarks = data.filter(item => item && item.url !== "DIVIDER_MARKER" && !item.isDivider);
                     renderBookmarks();
                     showStatus("✅ 동기화 완료");
                 })
@@ -336,12 +335,10 @@
                     </div>
                 `;
 
-                // 모바일 터치 이벤트
                 itemDiv.addEventListener('touchstart', handleTouchStart, { passive: false });
                 itemDiv.addEventListener('touchmove', handleTouchMove, { passive: false });
                 itemDiv.addEventListener('touchend', handleTouchEnd);
 
-                // PC 드래그 이벤트
                 itemDiv.setAttribute('draggable', 'true');
                 itemDiv.addEventListener('dragstart', handleDragStart);
                 itemDiv.addEventListener('dragover', handleDragOver);
@@ -376,7 +373,7 @@
             }
         }
 
-        // --- 드래그 앤 드롭 정밀 로직 ---
+        // --- 드래그앤드롭 로직 ---
         let dragSrcIndex = null;
         let isDraggingNow = false;
 
@@ -401,7 +398,9 @@
             this.classList.remove('dragging');
             if (!isDraggingNow && dragSrcIndex !== null) {
                 const targetItem = bookmarks[dragSrcIndex];
-                if (targetItem) window.open(targetItem.url, '_blank');
+                if (targetItem) {
+                    window.open(targetItem.url, '_blank');
+                }
             }
             dragSrcIndex = null; isDraggingNow = false;
         }
@@ -457,8 +456,10 @@
             const targetItem = bookmarks[touchSrcIndex];
 
             if (!isLongPressed) {
-                if (!isTouchMoved && targetItem) {
-                    window.open(targetItem.url, '_blank');
+                if (!isTouchMoved) {
+                    if (targetItem) {
+                        window.open(targetItem.url, '_blank');
+                    }
                 }
             } else {
                 const changedTouch = e.changedTouches[0];
