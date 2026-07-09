@@ -10,7 +10,7 @@
             --card-bg: #ffffff;
             --primary-color: #007bff;
             --set-color: #28a745;
-            --grid-size: 100px; /* PC 기본 크기 */
+            --icon-size: 100px; /* PC 기본 크기 */
         }
 
         body {
@@ -33,36 +33,39 @@
             text-align: center;
         }
 
-        /* 메인 모자이크 그리드 */
-        .mosaic-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(var(--grid-size), 1fr));
-            grid-auto-rows: minmax(var(--grid-size), auto);
+        /* [핵심 수정] Grid를 버리고 가로 배치(Flex) 구조로 변경 */
+        .mosaic-container {
+            display: flex;
+            flex-wrap: wrap;
             gap: 12px;
             width: 100%;
             max-width: 1200px;
-            justify-content: center;
+            justify-content: flex-start;
             flex-grow: 1;
             margin-bottom: 20px;
         }
 
-        /* [수정] 여백 최소화! 버튼 영역을 완전히 제거한 순수 투명 줄바꿈 벽 */
+        /* [핵심] 높이(height)가 정확히 0이며 강제로 줄바꿈을 일으키는 <br> 역할의 벽 */
         .set-divider {
-            grid-column: 1 / -1;     /* 가로 전체 칸 차지 */
-            height: 8px;            /* 줄바꿈 시 최소한의 시각적 여백만 제공 (더 줄여도 됩니다) */
-            background: transparent; /* 완전 투명 */
+            flex-basis: 100%;       /* 가로를 100% 다 차지하게 만들어 뒤의 아이콘을 아래로 밀어냄 */
+            height: 0px;            /* 세로 높이는 정확히 0 (여백 없음) */
+            margin: 0;
+            padding: 0;
             border: none;
-            position: relative;
-            user-select: none;
-            margin: 2px 0;           /* 쓸데없는 세로 여백 전면 제거 */
+            background: transparent;
+            overflow: hidden;
         }
 
-        /* 드래그 및 롱프레스 시 위치 확인을 위한 최소한의 피드백만 제공 */
+        /* 드래그 앤 드롭 편집 시에만 아주 최소한으로 위치를 인지할 수 있도록 피드백 제공 */
         .set-divider.dragging { 
-            opacity: 0.4; 
-            background: #e2e8f0 !important;
-            border: 2px dashed var(--primary-color) !important;
-            height: 20px;
+            height: 10px;
+            background: #e2e8f0;
+            border: 2px dashed var(--primary-color);
+        }
+        
+        .set-divider.ready-to-drag {
+            height: 10px;
+            background: rgba(0, 123, 255, 0.2);
         }
 
         /* 즐겨찾기 카드 기본 스타일 */
@@ -75,7 +78,14 @@
             transition: transform 0.2s, box-shadow 0.2s;
             user-select: none;
             touch-action: translateY;
-            height: var(--grid-size);
+            width: var(--icon-size);
+            height: var(--icon-size);
+            box-sizing: border-box;
+        }
+
+        .bookmark-item.dragging {
+            opacity: 0.4;
+            border: 2px dashed var(--primary-color);
         }
 
         .bookmark-item.ready-to-drag {
@@ -84,12 +94,6 @@
             border: 2px solid var(--primary-color);
             touch-action: none;
             background: #e2e8f0;
-        }
-        
-        /* 줄바꿈 벽이 선택되었을 때의 최소 피드백 */
-        .set-divider.ready-to-drag {
-            background: rgba(0, 123, 255, 0.2) !important;
-            height: 15px;
         }
 
         .bookmark-link {
@@ -116,7 +120,7 @@
             box-sizing: border-box;
         }
 
-        /* 일반 아이콘의 수정/삭제 버튼 */
+        /* 관리 버튼 */
         .action-btns {
             position: absolute;
             top: 4px;
@@ -208,18 +212,17 @@
         .add-btn:hover { transform: scale(1.03); }
         .add-btn:disabled { background-color: #ccc; cursor: not-allowed; }
 
-        /* 모바일 6열 배치 및 여백 극대화 감소 */
+        /* 모바일 6열 배치 반응형 계산 적용 */
         @media (max-width: 600px) {
             body { padding: 8px 8px 90px 8px; }
             
-            .mosaic-grid {
-                grid-template-columns: repeat(6, 1fr);
-                grid-auto-rows: minmax(calc((100vw - 16px - 25px) / 6), auto);
+            .mosaic-container {
                 gap: 5px;
             }
 
             .bookmark-item { 
                 border-radius: 8px; 
+                width: calc((100vw - 16px - 25px) / 6);
                 height: calc((100vw - 16px - 25px) / 6);
             }
             
@@ -229,11 +232,6 @@
                 letter-spacing: -0.5px;
                 background: #edf2f7;
                 color: #2d3748;
-            }
-            
-            .set-divider {
-                height: 5px; /* 모바일 줄바꿈 극최소 여백 */
-                margin: 1px 0;
             }
 
             .action-btns { top: 2px; right: 2px; gap: 2px; }
@@ -245,7 +243,7 @@
 
     <div id="statusMessage">☁️ 구글 시트에서 데이터를 불러오는 중...</div>
 
-    <div class="mosaic-grid" id="mosaicGrid"></div>
+    <div class="mosaic-container" id="mosaicContainer"></div>
 
     <div class="input-container">
         <div class="input-row">
@@ -347,8 +345,8 @@
         }
 
         function renderBookmarks() {
-            const grid = document.getElementById('mosaicGrid');
-            grid.innerHTML = '';
+            const container = document.getElementById('mosaicContainer');
+            container.innerHTML = '';
 
             bookmarks.forEach((item, index) => {
                 const isDiv = item.isDivider || item.url === "DIVIDER_MARKER";
@@ -356,11 +354,11 @@
                 itemDiv.setAttribute('data-index', index);
                 
                 if (isDiv) {
-                    // [수정] 아무런 내부 버튼이나 태그 없이 100% 빈 공간으로 채움
+                    // [수정] 완전히 세로 높이가 0인 투명 줄바꿈 태그 생성
                     itemDiv.className = 'set-divider';
                     itemDiv.innerHTML = '';
                     
-                    // PC 사용자를 위해 우클릭(컨텍스트 메뉴) 시 삭제 기능 제공
+                    // 우클릭 시 삭제창 오픈 (PC용 숨은 관리기능)
                     itemDiv.oncontextmenu = function(e) {
                         e.preventDefault();
                         deleteBookmark(index);
@@ -401,7 +399,7 @@
                 itemDiv.addEventListener('drop', handleDrop);
                 itemDiv.addEventListener('dragend', handleDragEnd);
 
-                grid.appendChild(itemDiv);
+                container.appendChild(itemDiv);
             });
         }
 
@@ -424,7 +422,7 @@
         }
 
         function deleteBookmark(index) {
-            const msg = bookmarks[index].url === "DIVIDER_MARKER" ? '이 줄바꿈(공백)을 삭제하시겠습니까?' : '이 즐겨찾기를 삭제하시겠습니까?';
+            const msg = bookmarks[index].url === "DIVIDER_MARKER" ? '이 줄바꿈 공백을 삭제하시겠습니까?' : '이 즐겨찾기를 삭제하시겠습니까?';
             if(confirm(msg)) {
                 bookmarks.splice(index, 1);
                 renderBookmarks();
@@ -485,7 +483,7 @@
                 isLongPressed = true;
                 this.classList.add('ready-to-drag');
                 if (navigator.vibrate) navigator.vibrate(50);
-            }, 600); // 롱프레스 인식 감도 살짝 상향
+            }, 500);
         }
 
         function handleTouchMove(e) {
@@ -521,7 +519,7 @@
                     }
                 }
             } else {
-                // [핵심] 줄바꿈 투명 벽에서 꾹 누른 상태로 이동 없이 손을 떼면 삭제 모드 진입
+                // 줄바꿈 벽을 모바일에서 길게 꾹 누르면 바로 삭제 모드 작동
                 if (!isTouchMoved && targetItem && targetItem.url === "DIVIDER_MARKER") {
                     deleteBookmark(touchSrcIndex);
                 } else {
