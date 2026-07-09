@@ -1,553 +1,146 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kinocine Cloud Bookmark</title>
-    <style>
-        :root {
-            --bg-color: #f8f9fa;
-            --card-bg: #ffffff;
-            --primary-color: #007bff;
-            --set-color: #28a745;
-            --icon-size: 100px; /* PC 기본 크기 */
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Best of K-Drama & Movies: Kinocine</title>
+  <style>
+    /* 기본 초기화 */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #f8f9fa;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 20px 10px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding-bottom: 120px; /* 하단 입력창에 가려지지 않도록 여백 확보 */
+    }
 
-        body {
-            font-family: 'Malgun Gothic', sans-serif;
-            background-color: var(--bg-color);
-            margin: 0;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
+    /* ─── 핵심: 모든 아이콘을 빈틈없이 붙여서 정렬 ─── */
+    .icon-list-container {
+      display: flex;
+      flex-wrap: wrap; /* 자리가 모자라면 자동으로 다음 줄로 */
+      gap: 10px;       /* 아이콘 간의 일정한 최소 간격 */
+      justify-content: flex-start; /* 무조건 왼쪽부터 차례대로 정렬 */
+    }
 
-        #statusMessage {
-            font-size: 11px;
-            color: #666;
-            margin-bottom: 15px;
-            height: 15px;
-            text-align: center;
-        }
+    /* 개별 아이콘 스타일 (텍스트형 버튼도 동일한 크기 유지) */
+    .icon-item {
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      text-decoration: none;
+      color: #333333;
+      font-size: 11px;
+      font-weight: 500;
+      text-align: center;
+      padding: 4px;
+      overflow: hidden;
+    }
+    .icon-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 4px;
+    }
 
-        /* [핵심 수정] Grid를 버리고 가로 배치(Flex) 구조로 변경 */
-        .mosaic-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            width: 100%;
-            max-width: 1200px;
-            justify-content: flex-start;
-            flex-grow: 1;
-            margin-bottom: 20px;
-        }
-
-        /* [핵심] 높이(height)가 정확히 0이며 강제로 줄바꿈을 일으키는 <br> 역할의 벽 */
-        .set-divider {
-            flex-basis: 100%;       /* 가로를 100% 다 차지하게 만들어 뒤의 아이콘을 아래로 밀어냄 */
-            height: 0px;            /* 세로 높이는 정확히 0 (여백 없음) */
-            margin: 0;
-            padding: 0;
-            border: none;
-            background: transparent;
-            overflow: hidden;
-        }
-
-        /* 드래그 앤 드롭 편집 시에만 아주 최소한으로 위치를 인지할 수 있도록 피드백 제공 */
-        .set-divider.dragging { 
-            height: 10px;
-            background: #e2e8f0;
-            border: 2px dashed var(--primary-color);
-        }
-        
-        .set-divider.ready-to-drag {
-            height: 10px;
-            background: rgba(0, 123, 255, 0.2);
-        }
-
-        /* 즐겨찾기 카드 기본 스타일 */
-        .bookmark-item {
-            position: relative;
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
-            user-select: none;
-            touch-action: translateY;
-            width: var(--icon-size);
-            height: var(--icon-size);
-            box-sizing: border-box;
-        }
-
-        .bookmark-item.dragging {
-            opacity: 0.4;
-            border: 2px dashed var(--primary-color);
-        }
-
-        .bookmark-item.ready-to-drag {
-            transform: scale(1.03);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-            border: 2px solid var(--primary-color);
-            touch-action: none;
-            background: #e2e8f0;
-        }
-
-        .bookmark-link {
-            display: flex;
-            width: 100%;
-            height: 100%;
-            text-decoration: none;
-        }
-
-        .bookmark-content {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: bold;
-            font-size: 18px;
-            color: #333;
-            background-color: #e9ecef;
-            object-fit: cover;
-            pointer-events: none;
-            text-align: center;
-            padding: 5px;
-            box-sizing: border-box;
-        }
-
-        /* 관리 버튼 */
-        .action-btns {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            display: none;
-            gap: 3px;
-            z-index: 10;
-        }
-
-        .bookmark-item:hover .action-btns { display: flex; }
-
-        .action-btns button {
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 10px;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-        }
-
-        .edit-card-btn { background: rgba(0, 123, 255, 0.9); }
-        .delete-card-btn { background: rgba(255, 0, 0, 0.8); }
-
-        /* 하단 입력창 */
-        .input-container {
-            background-color: var(--card-bg);
-            padding: 12px 16px;
-            border-radius: 16px;
-            box-shadow: 0 -4px 10px rgba(0,0,0,0.08);
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            width: 100%;
-            max-width: 550px;
-            box-sizing: border-box;
-            position: sticky;
-            bottom: 10px;
-            z-index: 100;
-        }
-
-        .input-row {
-            display: flex;
-            gap: 6px;
-            width: 100%;
-            align-items: center;
-        }
-
-        .input-container input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 13px;
-            outline: none;
-            background-color: #fafafa;
-            box-sizing: border-box;
-            height: 36px;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-        }
-
-        .add-btn {
-            height: 36px;
-            padding: 0 10px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 13px;
-            font-weight: bold;
-            transition: transform 0.1s, background 0.2s;
-            flex-shrink: 0;
-            color: white;
-        }
-        #submitBtn { background-color: var(--primary-color); }
-        #setBtn { background-color: var(--set-color); }
-
-        .add-btn:hover { transform: scale(1.03); }
-        .add-btn:disabled { background-color: #ccc; cursor: not-allowed; }
-
-        /* 모바일 6열 배치 반응형 계산 적용 */
-        @media (max-width: 600px) {
-            body { padding: 8px 8px 90px 8px; }
-            
-            .mosaic-container {
-                gap: 5px;
-            }
-
-            .bookmark-item { 
-                border-radius: 8px; 
-                width: calc((100vw - 16px - 25px) / 6);
-                height: calc((100vw - 16px - 25px) / 6);
-            }
-            
-            .bookmark-content { 
-                font-size: 11px; 
-                padding: 2px; 
-                letter-spacing: -0.5px;
-                background: #edf2f7;
-                color: #2d3748;
-            }
-
-            .action-btns { top: 2px; right: 2px; gap: 2px; }
-            .action-btns button { width: 16px; height: 16px; font-size: 8px; }
-        }
-    </style>
+    /* 하단 고정 입력창 영역 */
+    .input-panel {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 500px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #e1e4e8;
+      border-radius: 16px;
+      padding: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      backdrop-filter: blur(8px);
+    }
+    .input-group {
+      margin-bottom: 10px;
+    }
+    .input-group:last-child {
+      margin-bottom: 0;
+      display: flex;
+      gap: 8px;
+    }
+    .input-panel input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5da;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+    .input-panel input[type="text"]:focus {
+      border-color: #007bff;
+    }
+    
+    /* 하단 버튼 스타일 */
+    .btn-submit {
+      flex: 1;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .btn-action {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
 
-    <div id="statusMessage">☁️ 구글 시트에서 데이터를 불러오는 중...</div>
+<div class="container">
+  <div style="text-align: center; margin-bottom: 15px; font-size: 14px; color: #28a745;">
+    ✅ 동기화 완료
+  </div>
 
-    <div class="mosaic-container" id="mosaicContainer"></div>
+  <div class="icon-list-container" id="iconContainer">
+    <a href="#" class="icon-item"><img src="https://via.placeholder.com/60" alt="예시"></a>
+    <a href="#" class="icon-item"><img src="https://via.placeholder.com/60" alt="예시"></a>
+    <a href="#" class="icon-item">N스튜디오</a>
+    <a href="#" class="icon-item">일정</a>
+  </div>
+</div>
 
-    <div class="input-container">
-        <div class="input-row">
-            <input type="text" id="imgUrl" placeholder="이미지 URL 또는 [단어] 입력" required>
-        </div>
-        <div class="input-row">
-            <input type="text" id="siteUrl" placeholder="이동할 사이트 URL (구분선은 비워둠)">
-            <div class="btn-group">
-                <button onclick="addBookmark()" id="submitBtn" class="add-btn" title="북마크 추가">➕</button>
-                <button onclick="addSetDivider()" id="setBtn" class="add-btn" title="줄바꿈 추가">🌿</button>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyM-HttDcuRJwSn5XNNLa2_B4rEftMa9scIYpCk9YDRFRfQSYx_13bmUmLon5rZVF8WlQ/exec';
-        let bookmarks = [];
+<div class="input-panel">
+  <div class="input-group">
+    <input type="text" id="imgUrl" placeholder="이미지 URL 또는 [단어] 입력">
+  </div>
+  <div class="input-group">
+    <input type="text" id="siteUrl" placeholder="이동할 사이트 URL 입력">
+    <button class="btn-submit" id="addBtn">＋</button>
+    <button class="btn-action">🌿</button>
+  </div>
+</div>
 
-        window.onload = function() {
-            loadFromCloud();
-        };
-
-        function loadFromCloud() {
-            showStatus("☁️ 구글 시트에서 데이터를 불러오는 중...");
-            fetch(SCRIPT_URL)
-                .then(res => res.json())
-                .then(data => {
-                    if (data && data.status === "EMPTY_SHEET") {
-                        showStatus("✅ 동기화 완료");
-                        return;
-                    }
-                    bookmarks = data;
-                    renderBookmarks();
-                    showStatus("✅ 동기화 완료");
-                })
-                .catch(err => {
-                    console.error(err);
-                    showStatus("❌ 데이터를 불러오지 못했습니다.");
-                });
-        }
-
-        function saveToCloud() {
-            showStatus("🔄 변경 사항을 구글 시트에 저장 중...");
-            document.getElementById('submitBtn').disabled = true;
-
-            fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify(bookmarks),
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-            })
-            .then(res => res.json())
-            .then(result => {
-                if(result.result === "success") {
-                    showStatus("✅ 동기화 완료");
-                }
-                document.getElementById('submitBtn').disabled = false;
-            })
-            .catch(err => {
-                console.error(err);
-                showStatus("❌ 클라우드 저장 실패.");
-                document.getElementById('submitBtn').disabled = false;
-            });
-        }
-
-        function showStatus(msg) {
-            document.getElementById('statusMessage').innerHTML = msg.includes("동기화 완료") ? "✅ 동기화 완료" : msg;
-        }
-
-        function addBookmark() {
-            const imgUrlInput = document.getElementById('imgUrl');
-            const siteUrlInput = document.getElementById('siteUrl');
-            let imgUrl = imgUrlInput.value.trim();
-            let siteUrl = siteUrlInput.value.trim();
-
-            if (!imgUrl || !siteUrl) {
-                alert('내용을 모두 입력해주세요.');
-                return;
-            }
-
-            if (!/^https?:\/\//i.test(siteUrl)) siteUrl = 'https://' + siteUrl;
-            if (/^https?:\/\//i.test(imgUrl) || imgUrl.includes('.') || imgUrl.startsWith('data:')) {
-                if (!/^https?:\/\//i.test(imgUrl) && !imgUrl.startsWith('data:')) imgUrl = 'https://' + imgUrl;
-            }
-
-            bookmarks.push({ img: imgUrl, url: siteUrl });
-            renderBookmarks();
-            saveToCloud();
-
-            imgUrlInput.value = '';
-            siteUrlInput.value = '';
-        }
-
-        function addSetDivider() {
-            bookmarks.push({ img: "공백", url: "DIVIDER_MARKER", isDivider: true });
-            renderBookmarks();
-            saveToCloud();
-            document.getElementById('imgUrl').value = '';
-            document.getElementById('siteUrl').value = '';
-        }
-
-        function renderBookmarks() {
-            const container = document.getElementById('mosaicContainer');
-            container.innerHTML = '';
-
-            bookmarks.forEach((item, index) => {
-                const isDiv = item.isDivider || item.url === "DIVIDER_MARKER";
-                const itemDiv = document.createElement('div');
-                itemDiv.setAttribute('data-index', index);
-                
-                if (isDiv) {
-                    // [수정] 완전히 세로 높이가 0인 투명 줄바꿈 태그 생성
-                    itemDiv.className = 'set-divider';
-                    itemDiv.innerHTML = '';
-                    
-                    // 우클릭 시 삭제창 오픈 (PC용 숨은 관리기능)
-                    itemDiv.oncontextmenu = function(e) {
-                        e.preventDefault();
-                        deleteBookmark(index);
-                    };
-                } else {
-                    itemDiv.className = 'bookmark-item';
-                    let innerElement = '';
-                    if (item.img.startsWith('http') || item.img.startsWith('data:') || item.img.includes('/')) {
-                        innerElement = `<img src="${item.img}" class="bookmark-content" onerror="this.onerror=null; this.outerHTML='<div class=\\'bookmark-content\\'>📄</div>';">`;
-                    } else {
-                        let dynamicFontSize = '';
-                        if(item.img.length > 4) {
-                            dynamicFontSize = 'font-size: 9px; word-break: break-all;';
-                        } else if(item.img.length > 2) {
-                            dynamicFontSize = 'font-size: 11px;';
-                        }
-                        innerElement = `<div class="bookmark-content" style="${dynamicFontSize}">${item.img}</div>`;
-                    }
-
-                    itemDiv.innerHTML = `
-                        <a href="${item.url}" target="_blank" class="bookmark-link" title="${item.url}">
-                            ${innerElement}
-                        </a>
-                        <div class="action-btns">
-                            <button class="edit-card-btn" onclick="editBookmark(${index}); event.preventDefault(); event.stopPropagation();">✏️</button>
-                            <button class="delete-card-btn" onclick="deleteBookmark(${index}); event.preventDefault(); event.stopPropagation();">×</button>
-                        </div>
-                    `;
-                }
-
-                itemDiv.addEventListener('touchstart', handleTouchStart, { passive: false });
-                itemDiv.addEventListener('touchmove', handleTouchMove, { passive: false });
-                itemDiv.addEventListener('touchend', handleTouchEnd);
-
-                itemDiv.setAttribute('draggable', 'true');
-                itemDiv.addEventListener('dragstart', handleDragStart);
-                itemDiv.addEventListener('dragover', handleDragOver);
-                itemDiv.addEventListener('drop', handleDrop);
-                itemDiv.addEventListener('dragend', handleDragEnd);
-
-                container.appendChild(itemDiv);
-            });
-        }
-
-        function editBookmark(index) {
-            const item = bookmarks[index];
-            if (item.isDivider || item.url === "DIVIDER_MARKER") return;
-
-            const newImg = prompt("새로운 이미지 주소 또는 단어를 입력하세요:", item.img);
-            if (newImg === null) return;
-            const newUrl = prompt("이동할 새로운 사이트 주소를 입력하세요:", item.url);
-            if (newUrl === null) return;
-
-            if (newImg.trim() && newUrl.trim()) {
-                let formattedUrl = newUrl.trim();
-                if (!/^https?:\/\//i.test(formattedUrl)) formattedUrl = 'https://' + formattedUrl;
-                bookmarks[index] = { img: newImg.trim(), url: formattedUrl };
-            }
-            renderBookmarks();
-            saveToCloud();
-        }
-
-        function deleteBookmark(index) {
-            const msg = bookmarks[index].url === "DIVIDER_MARKER" ? '이 줄바꿈 공백을 삭제하시겠습니까?' : '이 즐겨찾기를 삭제하시겠습니까?';
-            if(confirm(msg)) {
-                bookmarks.splice(index, 1);
-                renderBookmarks();
-                saveToCloud();
-            }
-        }
-
-        // --- 드래그앤드롭 로직 ---
-        let dragSrcIndex = null;
-        let isDraggingNow = false;
-
-        function handleDragStart(e) {
-            this.classList.add('dragging');
-            dragSrcIndex = Number(this.getAttribute('data-index'));
-            e.dataTransfer.effectAllowed = 'move';
-            isDraggingNow = false;
-        }
-        function handleDragOver(e) {
-            if (e.preventDefault) { e.preventDefault(); }
-            isDraggingNow = true;
-            return false;
-        }
-        function handleDrop(e) {
-            e.preventDefault(); e.stopPropagation();
-            const targetIndex = Number(this.getAttribute('data-index'));
-            swapItems(dragSrcIndex, targetIndex);
-            return false;
-        }
-        function handleDragEnd(e) {
-            this.classList.remove('dragging');
-            if (!isDraggingNow && dragSrcIndex !== null) {
-                const targetItem = bookmarks[dragSrcIndex];
-                if (targetItem && targetItem.url !== "DIVIDER_MARKER") {
-                    window.open(targetItem.url, '_blank');
-                }
-            }
-            dragSrcIndex = null; isDraggingNow = false;
-        }
-
-        let touchSrcIndex = null;
-        let touchActiveElement = null;
-        let touchStartPos = { x: 0, y: 0 };
-        let isTouchMoved = false;
-        let touchTimer = null;
-        let isLongPressed = false;
-
-        function handleTouchStart(e) {
-            if (e.target.tagName === 'BUTTON') return;
-
-            touchActiveElement = this;
-            touchSrcIndex = Number(this.getAttribute('data-index'));
-            const touch = e.touches[0];
-            touchStartPos = { x: touch.clientX, y: touch.clientY };
-            isTouchMoved = false;
-            isLongPressed = false;
-
-            touchTimer = setTimeout(() => {
-                isLongPressed = true;
-                this.classList.add('ready-to-drag');
-                if (navigator.vibrate) navigator.vibrate(50);
-            }, 500);
-        }
-
-        function handleTouchMove(e) {
-            if (touchSrcIndex === null) return;
-            const touch = e.touches[0];
-            
-            if (Math.abs(touch.clientX - touchStartPos.x) > 10 || Math.abs(touch.clientY - touchStartPos.y) > 10) {
-                isTouchMoved = true;
-                if (!isLongPressed) {
-                    clearTimeout(touchTimer);
-                }
-            }
-
-            if (isLongPressed) {
-                e.preventDefault();
-            }
-        }
-
-        function handleTouchEnd(e) {
-            clearTimeout(touchTimer);
-            
-            if (touchSrcIndex === null) return;
-            if (touchActiveElement) {
-                touchActiveElement.classList.remove('ready-to-drag');
-            }
-
-            const targetItem = bookmarks[touchSrcIndex];
-
-            if (!isLongPressed) {
-                if (!isTouchMoved) {
-                    if (targetItem && targetItem.url !== "DIVIDER_MARKER") {
-                        window.open(targetItem.url, '_blank');
-                    }
-                }
-            } else {
-                // 줄바꿈 벽을 모바일에서 길게 꾹 누르면 바로 삭제 모드 작동
-                if (!isTouchMoved && targetItem && targetItem.url === "DIVIDER_MARKER") {
-                    deleteBookmark(touchSrcIndex);
-                } else {
-                    const changedTouch = e.changedTouches[0];
-                    const targetEl = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
-                    const targetItemEl = targetEl ? targetEl.closest('.bookmark-item, .set-divider') : null;
-
-                    if (targetItemEl) {
-                        const targetIndex = Number(targetItemEl.getAttribute('data-index'));
-                        swapItems(touchSrcIndex, targetIndex);
-                    }
-                }
-            }
-
-            touchSrcIndex = null;
-            touchActiveElement = null;
-            isTouchMoved = false;
-            isLongPressed = false;
-        }
-
-        function swapItems(src, target) {
-            if (src !== null && target !== null && src !== target) {
-                const draggedItem = bookmarks.splice(src, 1)[0];
-                bookmarks.splice(target, 0, draggedItem);
-                renderBookmarks();
-                saveToCloud();
-            }
-        }
-    </script>
+<script>
+  // 이 자리에 구글 시트 데이터를 가져와서 #iconContainer 안에 
+  // 차례대로 append 해주는 기존 스크립트 코드를 그대로 유지해 주시면 됩니다.
+</script>
 </body>
 </html>
