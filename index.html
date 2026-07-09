@@ -46,28 +46,23 @@
             margin-bottom: 20px;
         }
 
-        /* [핵심] 줄바꿈 역할을 하는 투명한 벽 스타일 */
+        /* [수정] 여백 최소화! 버튼 영역을 완전히 제거한 순수 투명 줄바꿈 벽 */
         .set-divider {
-            grid-column: 1 / -1;     /* 가로 전체 칸을 다 차지해서 강제로 다음 줄로 넘김 */
-            height: 20px;            /* 줄바꿈 시 생기는 공백 높이 */
-            background: transparent; /* 평소에는 완전히 투명하게 아무것도 안 보임 */
-            border: 1px dashed transparent;
+            grid-column: 1 / -1;     /* 가로 전체 칸 차지 */
+            height: 8px;            /* 줄바꿈 시 최소한의 시각적 여백만 제공 (더 줄여도 됩니다) */
+            background: transparent; /* 완전 투명 */
+            border: none;
             position: relative;
             user-select: none;
-            margin: 5px 0;
+            margin: 2px 0;           /* 쓸데없는 세로 여백 전면 제거 */
         }
 
-        /* 마우스를 올렸을 때나 드래그 중에만 위치 편집을 위해 살짝 보임 */
-        .set-divider:hover {
-            background: rgba(0, 0, 0, 0.03);
-            border-color: #ccc;
-        }
-        .set-divider:hover .action-btns { display: flex; }
-
-        .bookmark-item.dragging, .set-divider.dragging { 
+        /* 드래그 및 롱프레스 시 위치 확인을 위한 최소한의 피드백만 제공 */
+        .set-divider.dragging { 
             opacity: 0.4; 
-            border: 2px dashed var(--primary-color) !important;
             background: #e2e8f0 !important;
+            border: 2px dashed var(--primary-color) !important;
+            height: 20px;
         }
 
         /* 즐겨찾기 카드 기본 스타일 */
@@ -83,12 +78,18 @@
             height: var(--grid-size);
         }
 
-        .bookmark-item.ready-to-drag, .set-divider.ready-to-drag {
+        .bookmark-item.ready-to-drag {
             transform: scale(1.03);
             box-shadow: 0 5px 15px rgba(0,0,0,0.15);
             border: 2px solid var(--primary-color);
             touch-action: none;
             background: #e2e8f0;
+        }
+        
+        /* 줄바꿈 벽이 선택되었을 때의 최소 피드백 */
+        .set-divider.ready-to-drag {
+            background: rgba(0, 123, 255, 0.2) !important;
+            height: 15px;
         }
 
         .bookmark-link {
@@ -115,7 +116,7 @@
             box-sizing: border-box;
         }
 
-        /* 관리 버튼 */
+        /* 일반 아이콘의 수정/삭제 버튼 */
         .action-btns {
             position: absolute;
             top: 4px;
@@ -123,13 +124,6 @@
             display: none;
             gap: 3px;
             z-index: 10;
-        }
-
-        /* 투명 줄바꿈 영역 안에서의 버튼 위치 설정 */
-        .set-divider .action-btns {
-            top: 50%;
-            transform: translateY(-50%);
-            right: 8px;
         }
 
         .bookmark-item:hover .action-btns { display: flex; }
@@ -214,7 +208,7 @@
         .add-btn:hover { transform: scale(1.03); }
         .add-btn:disabled { background-color: #ccc; cursor: not-allowed; }
 
-        /* 모바일 한 줄에 6개 배치 최적화 */
+        /* 모바일 6열 배치 및 여백 극대화 감소 */
         @media (max-width: 600px) {
             body { padding: 8px 8px 90px 8px; }
             
@@ -238,15 +232,12 @@
             }
             
             .set-divider {
-                height: 15px; /* 모바일 줄바꿈 공백 크기 */
-                margin: 3px 0;
+                height: 5px; /* 모바일 줄바꿈 극최소 여백 */
+                margin: 1px 0;
             }
 
             .action-btns { top: 2px; right: 2px; gap: 2px; }
             .action-btns button { width: 16px; height: 16px; font-size: 8px; }
-            
-            /* 모바일에서는 투명 줄바꿈 공간에 마우스를 못 올리므로 버튼이 항상 살짝 보이게 처리 */
-            .set-divider .action-btns { top: 50%; right: 4px; transform: translateY(-50%); display: flex; }
         }
     </style>
 </head>
@@ -264,7 +255,7 @@
             <input type="text" id="siteUrl" placeholder="이동할 사이트 URL (구분선은 비워둠)">
             <div class="btn-group">
                 <button onclick="addBookmark()" id="submitBtn" class="add-btn" title="북마크 추가">➕</button>
-                <button onclick="addSetDivider()" id="setBtn" class="add-btn" title="줄바꿈 투명 벽 추가">🌿</button>
+                <button onclick="addSetDivider()" id="setBtn" class="add-btn" title="줄바꿈 추가">🌿</button>
             </div>
         </div>
     </div>
@@ -347,7 +338,6 @@
             siteUrlInput.value = '';
         }
 
-        // 줄바꿈 투명 벽 생성
         function addSetDivider() {
             bookmarks.push({ img: "공백", url: "DIVIDER_MARKER", isDivider: true });
             renderBookmarks();
@@ -366,13 +356,15 @@
                 itemDiv.setAttribute('data-index', index);
                 
                 if (isDiv) {
-                    // 글자나 배경색 없이 완전 투명하게 렌더링 (삭제 버튼 등만 우측에 최소한으로 숨김 제공)
+                    // [수정] 아무런 내부 버튼이나 태그 없이 100% 빈 공간으로 채움
                     itemDiv.className = 'set-divider';
-                    itemDiv.innerHTML = `
-                        <div class="action-btns">
-                            <button class="delete-card-btn" onclick="deleteBookmark(${index}); event.preventDefault(); event.stopPropagation();">×</button>
-                        </div>
-                    `;
+                    itemDiv.innerHTML = '';
+                    
+                    // PC 사용자를 위해 우클릭(컨텍스트 메뉴) 시 삭제 기능 제공
+                    itemDiv.oncontextmenu = function(e) {
+                        e.preventDefault();
+                        deleteBookmark(index);
+                    };
                 } else {
                     itemDiv.className = 'bookmark-item';
                     let innerElement = '';
@@ -399,7 +391,6 @@
                     `;
                 }
 
-                // 드래그 앤 드롭 및 터치 이벤트 바인딩
                 itemDiv.addEventListener('touchstart', handleTouchStart, { passive: false });
                 itemDiv.addEventListener('touchmove', handleTouchMove, { passive: false });
                 itemDiv.addEventListener('touchend', handleTouchEnd);
@@ -494,7 +485,7 @@
                 isLongPressed = true;
                 this.classList.add('ready-to-drag');
                 if (navigator.vibrate) navigator.vibrate(50);
-            }, 500);
+            }, 600); // 롱프레스 인식 감도 살짝 상향
         }
 
         function handleTouchMove(e) {
@@ -521,21 +512,27 @@
                 touchActiveElement.classList.remove('ready-to-drag');
             }
 
+            const targetItem = bookmarks[touchSrcIndex];
+
             if (!isLongPressed) {
                 if (!isTouchMoved) {
-                    const targetItem = bookmarks[touchSrcIndex];
                     if (targetItem && targetItem.url !== "DIVIDER_MARKER") {
                         window.open(targetItem.url, '_blank');
                     }
                 }
             } else {
-                const changedTouch = e.changedTouches[0];
-                const targetEl = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
-                const targetItemEl = targetEl ? targetEl.closest('.bookmark-item, .set-divider') : null;
+                // [핵심] 줄바꿈 투명 벽에서 꾹 누른 상태로 이동 없이 손을 떼면 삭제 모드 진입
+                if (!isTouchMoved && targetItem && targetItem.url === "DIVIDER_MARKER") {
+                    deleteBookmark(touchSrcIndex);
+                } else {
+                    const changedTouch = e.changedTouches[0];
+                    const targetEl = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
+                    const targetItemEl = targetEl ? targetEl.closest('.bookmark-item, .set-divider') : null;
 
-                if (targetItemEl) {
-                    const targetIndex = Number(targetItemEl.getAttribute('data-index'));
-                    swapItems(touchSrcIndex, targetIndex);
+                    if (targetItemEl) {
+                        const targetIndex = Number(targetItemEl.getAttribute('data-index'));
+                        swapItems(touchSrcIndex, targetIndex);
+                    }
                 }
             }
 
